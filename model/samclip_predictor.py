@@ -50,7 +50,8 @@ class SAMCLIP:
         Only receives image path as input.
         """
         image = cv2.imread(str(img_dir))
-        image = cv2.resize(image, (img_size[1], img_size[0]))
+        if img_size:
+            image = cv2.resize(image, (img_size[1], img_size[0]))
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         masks, masks_s, masks_m, masks_l = self.mask_generator.generate(image)
 
@@ -91,8 +92,10 @@ class SAMCLIP:
         pad_imgs = torchvision.transforms.Normalize(
             (0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)
         )(pad_imgs).cuda()
-
-        crop_features = self.clip_model.encode_image(pad_imgs).cpu()
+        crop_features=[]
+        for pad_img in pad_imgs:
+            crop_features.append(self.clip_model.encode_image(pad_img[None]).cpu())
+        crop_features = torch.cat(crop_features)
         features = torch.zeros((768, image.shape[0], image.shape[1]), dtype=torch.half)
         for idx, seg_mask in enumerate(segs):
             features[:, seg_mask] += crop_features[idx].unsqueeze(1)  # * scores[idx]
